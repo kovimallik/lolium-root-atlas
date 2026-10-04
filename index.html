@@ -36,7 +36,8 @@ canvas{width:100%;max-width:100%;height:auto;display:block;background:var(--pane
 .tool{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:16px}
 form{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 input[type=text]{font:inherit;font-family:var(--mono);font-size:15px;padding:8px 10px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg);min-width:0;flex:1 1 220px}
-input[type=text]:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+input[type=text]:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+select{font:inherit;padding:8px 8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
 button{font:inherit;font-weight:600;padding:8px 16px;border-radius:4px;border:1px solid var(--accent-ink);background:var(--accent);color:#1E2A22;cursor:pointer}
 button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
 .hint{font-size:13px;color:var(--muted);margin:8px 0 0}
@@ -89,15 +90,17 @@ footer{margin-top:36px;border-top:1px solid var(--line);padding-top:10px;font-si
     <div class="tool" id="gene">
       <h2>Gene viewer</h2>
       <form id="f">
-        <input type="text" id="q" placeholder="Gene ID (LOC…) or a keyword, e.g. nitrate transporter" autocomplete="off" spellcheck="false" aria-label="Gene ID or keyword">
-        <button type="submit" id="go">Search</button>
+        <input type="text" id="q" placeholder="Gene ID (LOC…), several IDs separated by commas, or a keyword" autocomplete="off" spellcheck="false" aria-label="Gene ID or keyword">
+        <select id="view" aria-label="Plot type"><option value="umap">UMAP</option><option value="split">UMAP by genotype</option><option value="violin">Violin by cell state</option><option value="dot">Dot plot (several genes)</option></select>
+        <button type="submit" id="go">Show</button>
       </form>
-      <p class="hint">All <span id="ngenes">…</span> genes detected in the atlas (Kyuss_2.0 RefSeq IDs, <code>LOC…</code>); a keyword searches the gene descriptions. Examples: <a href="#" data-g="LOC127343516">NRT2.3</a>, <a href="#" data-g="LOC127319930">AMT2;1</a>, <a href="#" data-g="LOC127335392">NLP2</a>, <a href="#" data-g="LOC127296474">SLAH2</a>, <a href="#" data-g="LOC127297115">CASP-like (endodermis)</a>, keyword <a href="#" data-k="glutamine synthetase">glutamine synthetase</a>.</p>
+      <p class="hint">All <span id="ngenes">…</span> genes detected in the atlas (Kyuss_2.0 RefSeq IDs, <code>LOC…</code>); a keyword searches the gene descriptions. Examples: <a href="#" data-g="LOC127343516">NRT2.3</a>, <a href="#" data-g="LOC127319930">AMT2;1</a>, <a href="#" data-g="LOC127335392">NLP2</a>, <a href="#" data-g="LOC127296474">SLAH2</a>, <a href="#" data-g="LOC127297115">CASP-like (endodermis)</a>, keyword <a href="#" data-k="glutamine synthetase">glutamine synthetase</a>; dot plot of the uptake pathway: <a href="#" data-g="LOC127343516,LOC127343520,LOC127319930,LOC127307077,LOC127335392">NRT2.3 pair, AMT2;1, AMT1;2, NLP2</a>.</p>
       <ol class="hits" id="hits" hidden></ol>
       <div class="result" id="result" hidden>
         <div>
-          <canvas id="umapGene" width="640" height="640" aria-label="UMAP coloured by expression of the selected gene"></canvas>
-          <div class="cbar"></div><div class="cbar-l"><span>0</span><span id="vmax"></span></div>
+          <canvas id="umapGene" width="640" height="640" aria-label="Expression plot of the selected gene"></canvas>
+          <div id="cbarbox"><div class="cbar"></div><div class="cbar-l"><span>0</span><span id="vmax"></span></div></div>
+          <p class="hint" id="plotnote"></p>
         </div>
         <div class="meta">
           <div class="gene" id="gname"></div>
@@ -131,16 +134,18 @@ footer{margin-top:36px;border-top:1px solid var(--line);padding-top:10px;font-si
   const $=id=>document.getElementById(id);
   const BROWSER_URL="REPLACE_WITH_BROWSER_URL";   // optional: URL of a hosted UCSC/cellxgene browser (HOSTING.md); the page is complete without it
   if(!BROWSER_URL.startsWith("REPLACE")){ $("browserline").hidden=false; $("browserlink2").href=BROWSER_URL; $("browserlink2").textContent=BROWSER_URL; }
-  let meta, GENES, U, L, N; const chunks={};
+  let meta, GENES, U, L, N, LIB, GENO; const chunks={};
+  const GN=["Barhoney","Fagerlin"];
   // data files are PNGs (grey = one byte per value); read back through an off-screen canvas
   function px8(url){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>{ const cv=document.createElement("canvas"); cv.width=im.width; cv.height=im.height; const cx=cv.getContext("2d",{willReadFrequently:true}); cx.drawImage(im,0,0); res(cx.getImageData(0,0,im.width,im.height).data); }; im.onerror=rej; im.src=url; }); }
   try{
     meta=await (await fetch("data/meta.json")).json();
     GENES=await (await fetch("data/genes.json")).json();
     N=meta.n;
-    const um=await px8("data/umap.png"), lb=await px8("data/labels.png");
-    U=new Float32Array(N*2); L=new Uint8Array(N);
-    for(let i=0;i<N;i++){ U[2*i]=(um[4*i]*256+um[4*i+1])/65535; U[2*i+1]=(um[4*(N+i)]*256+um[4*(N+i)+1])/65535; L[i]=lb[4*i]; }
+    const um=await px8("data/umap.png"), lb=await px8("data/labels.png"), lib=await px8("data/libs.png");
+    U=new Float32Array(N*2); L=new Uint8Array(N); LIB=new Uint8Array(N);
+    for(let i=0;i<N;i++){ U[2*i]=(um[4*i]*256+um[4*i+1])/65535; U[2*i+1]=(um[4*(N+i)]*256+um[4*(N+i)+1])/65535; L[i]=lb[4*i]; LIB[i]=lib[4*i]; }
+    GENO=new Uint8Array(N); for(let i=0;i<N;i++) GENO[i]=meta.libs[LIB[i]].geno==="Barhoney"?0:1;
   }catch(e){ $("msg").hidden=false; $("msg").textContent="The atlas data files could not be loaded (data/ folder missing next to this page)."; return; }
   $("ngenes").textContent=meta.n_genes.toLocaleString();
   // legend
@@ -167,31 +172,77 @@ footer{margin-top:36px;border-top:1px solid var(--line);padding-top:10px;font-si
     $("msg").hidden=true;
     if(!chunks[m.c]){ const d=await px8(`data/chunk_${m.c}.png`); const b=new Uint8Array(d.length/4); for(let i=0;i<b.length;i++) b[i]=d[4*i]; chunks[m.c]=b; }
     const v=chunks[m.c].subarray(m.i*N,(m.i+1)*N);
-    order.sort((a,b)=>v[a]-v[b]);
-    const c=$("umapGene").getContext("2d"); c.clearRect(0,0,W,W);
-    for(const i of order){ c.fillStyle=col(v[i]); c.fillRect(px(i)-S/2,py(i)-S/2,S,S); }
-    axes(c);
-    $("result").hidden=false; $("gname").textContent=g; $("gdesc").textContent=m.d; $("gpct").textContent=m.pct+" %"; $("grole").textContent=m.r||"detected gene"; $("grole").parentElement.querySelectorAll("dt")[1].hidden=!m.r; $("grole").hidden=!m.r; $("vmax").textContent="≥ "+m.max.toFixed(2);
+    const view=$("view").value, cv=$("umapGene"), c=cv.getContext("2d");
+    $("result").hidden=false; $("gname").textContent=g; $("gdesc").textContent=m.d; $("gpct").textContent=m.pct+" %"; $("vmax").textContent="≥ "+m.max.toFixed(2);
+    $("grole").textContent=m.r||"detected gene"; $("grole").parentElement.querySelectorAll("dt")[1].hidden=!m.r; $("grole").hidden=!m.r;
+    $("cbarbox").hidden=view==="violin"; $("plotnote").textContent="";
     const sum=new Float64Array(meta.states.length), cnt=new Float64Array(meta.states.length);
     for(let i=0;i<N;i++){ sum[L[i]]+=v[i]; cnt[L[i]]++; }
     const mean=meta.states.map((s,k)=>cnt[k]?sum[k]/cnt[k]:0), mx=Math.max(...mean,1e-9);
     $("bars").innerHTML=meta.states.map((s,k)=>`<div class="bar"><span>${s.label.replace(/ \(.*\)/,"")}</span><b style="width:${(mean[k]/mx*100).toFixed(1)}%;background:${s.color}"></b><span>${(mean[k]/mx).toFixed(2)}</span></div>`).join("");
+    if(view==="umap"){ cv.width=W; cv.height=W; order.sort((a,b)=>v[a]-v[b]); c.clearRect(0,0,W,W); for(const i of order){ c.fillStyle=col(v[i]); c.fillRect(px(i)-S/2,py(i)-S/2,S,S); } axes(c); }
+    else if(view==="split"){ cv.width=W*2; cv.height=W; c.clearRect(0,0,W*2,W); order.sort((a,b)=>v[a]-v[b]);
+      for(let gi=0;gi<2;gi++){ c.save(); c.translate(gi*W,0); c.fillStyle="#BBB"; for(let i=0;i<N;i++) if(GENO[i]!==gi) c.fillRect(px(i)-S/2,py(i)-S/2,S,S);
+        for(const i of order) if(GENO[i]===gi){ c.fillStyle=col(v[i]); c.fillRect(px(i)-S/2,py(i)-S/2,S,S); }
+        axes(c); c.fillStyle=meta.geno_colors[GN[gi]]; c.font="600 15px IBM Plex Sans, sans-serif"; c.fillText(GN[gi],PAD+4,24); c.restore(); }
+      $("plotnote").textContent="Grey: nuclei of the other genotype. Both N levels pooled."; }
+    else if(view==="violin"){ drawViolin(c,cv,v,m); }
+    $("umapGene").setAttribute("aria-label",view+" plot of "+g);
     try{ history.replaceState(null,"","#"+g); }catch(e){}
+  }
+  function kde(vals,grid,bw){ const out=new Float64Array(grid.length); if(!vals.length) return out; for(const x of vals){ for(let j=0;j<grid.length;j++){ const u=(grid[j]-x)/bw; out[j]+=Math.exp(-0.5*u*u); } } return out; }
+  function drawViolin(c,cv,v,m){
+    const K=meta.states.length, w=640, rowH=34, left=170, h=rowH*K+40; cv.width=w; cv.height=h; c.clearRect(0,0,w,h);
+    const grid=[]; for(let j=0;j<=24;j++) grid.push(j/24*255);
+    const half=(w-left-24)/4-2; // per genotype half-violin width
+    c.font="12px IBM Plex Sans, sans-serif";
+    for(let k=0;k<K;k++){ const y0=20+k*rowH+rowH/2;
+      c.fillStyle=getComputedStyle(document.body).color; c.textAlign="right"; c.fillText(meta.states[k].label.replace(/ \(.*\)/,"").slice(0,24),left-10,y0+4);
+      for(let gi=0;gi<2;gi++){ const vals=[]; for(let i=0;i<N;i++) if(L[i]===k&&GENO[i]===gi) vals.push(v[i]);
+        const n=vals.length; if(n<5) continue; const d=kde(vals,grid,18); const dm=Math.max(...d)||1;
+        const x0=left+gi*((w-left-24)/2)+ (w-left-24)/4; // centre of this genotype's violin
+        c.beginPath(); for(let j=0;j<grid.length;j++){ c.lineTo(x0-half+ (grid[j]/255)*2*half, y0-(d[j]/dm)*(rowH/2-2)); } for(let j=grid.length-1;j>=0;j--){ c.lineTo(x0-half+(grid[j]/255)*2*half, y0+(d[j]/dm)*(rowH/2-2)); } c.closePath();
+        c.fillStyle=meta.geno_colors[GN[gi]]+"AA"; c.fill();
+        const mu=vals.reduce((a,b)=>a+b,0)/n; c.fillStyle="#000"; c.fillRect(x0-half+(mu/255)*2*half-1,y0-6,2,12);
+        c.fillStyle="#666"; c.textAlign="left"; c.font="10px IBM Plex Sans, sans-serif"; c.fillText(n.toLocaleString(),x0+half+4,y0+3); c.font="12px IBM Plex Sans, sans-serif"; }
+    }
+    c.textAlign="left"; for(let gi=0;gi<2;gi++){ const x0=left+gi*((w-left-24)/2)+(w-left-24)/4; c.fillStyle=meta.geno_colors[GN[gi]]; c.font="600 13px IBM Plex Sans, sans-serif"; c.fillText(GN[gi],x0-half,14); }
+    $("plotnote").textContent="Expression density per cell state (x: 0 to the gene's 99th-percentile value), split by genotype, both N levels pooled; black tick = mean; n nuclei at right.";
+  }
+  async function loadVec(g){ const a=GENES[g]; if(!a||a[0]<0) return null; if(!chunks[a[0]]){ const d=await px8(`data/chunk_${a[0]}.png`); const b=new Uint8Array(d.length/4); for(let i=0;i<b.length;i++) b[i]=d[4*i]; chunks[a[0]]=b; } return chunks[a[0]].subarray(a[1]*N,(a[1]+1)*N); }
+  async function drawDot(genes){
+    const rows=[]; for(const g of genes){ const v=await loadVec(g); if(v) rows.push([g,v]); }
+    if(!rows.length){ $("msg").hidden=false; $("msg").textContent="None of these genes has enough nuclei to plot."; return; }
+    $("msg").hidden=true; $("result").hidden=false; $("cbarbox").hidden=false;
+    const K=meta.states.length, cell=26, left=160, top=120, w=left+K*cell+20, h=top+rows.length*cell+20, cv=$("umapGene"), c=cv.getContext("2d"); cv.width=w; cv.height=h; c.clearRect(0,0,w,h);
+    const fg=getComputedStyle(document.body).color; c.fillStyle=fg; c.font="12px IBM Plex Sans, sans-serif";
+    meta.states.forEach((s,k)=>{ c.save(); c.translate(left+k*cell+cell/2+4,top-8); c.rotate(-Math.PI/3); c.textAlign="left"; c.fillText(s.label.replace(/ \(.*\)/,"").slice(0,22),0,0); c.restore(); });
+    rows.forEach(([g,v],r)=>{ const y=top+r*cell+cell/2; c.fillStyle=fg; c.textAlign="right"; c.font="12px IBM Plex Mono, monospace"; c.fillText(g,left-8,y+4);
+      const sum=new Float64Array(K), cnt=new Float64Array(K), det=new Float64Array(K); for(let i=0;i<N;i++){ sum[L[i]]+=v[i]; cnt[L[i]]++; if(v[i]>0) det[L[i]]++; }
+      const mean=meta.states.map((s,k)=>cnt[k]?sum[k]/cnt[k]:0), mx=Math.max(...mean,1e-9);
+      meta.states.forEach((s,k)=>{ const pct=cnt[k]?det[k]/cnt[k]:0, rad=2+9*Math.sqrt(pct); c.beginPath(); c.arc(left+k*cell+cell/2,y,rad,0,2*Math.PI); c.fillStyle=col(mean[k]/mx*255); c.fill(); c.strokeStyle="#8884"; c.stroke(); }); });
+    [0.1,0.5,1].forEach((p,i)=>{ c.beginPath(); c.arc(left+K*cell-60+i*26,14,2+9*Math.sqrt(p),0,2*Math.PI); c.fillStyle="#999"; c.fill(); c.fillStyle=fg; c.font="10px IBM Plex Sans, sans-serif"; c.textAlign="center"; c.fillText(Math.round(p*100)+"%",left+K*cell-60+i*26,36); });
+    c.textAlign="left"; c.fillStyle=fg; c.fillText("dot size: % nuclei detected; colour: mean expression scaled per gene",left-150,52);
+    $("gname").textContent=rows.map(r=>r[0]).join(", "); $("gdesc").textContent=rows.map(r=>GENES[r[0]][4]).join(" · "); $("gpct").textContent="—"; $("bars").innerHTML=""; $("vmax").textContent="row max";
+    $("plotnote").textContent=rows.length<genes.length?`${genes.length-rows.length} gene(s) skipped (unknown or too rarely detected).`:"";
   }
   drawStates();
   function search(q){
     q=q.trim(); if(!q) return;
-    if(/^LOC\d+$/i.test(q)){ $("hits").hidden=true; drawGene(q.toUpperCase()); return; }
+    const ids=q.toUpperCase().split(/[\s,;]+/).filter(x=>/^LOC\d+$/.test(x));
+    if(ids.length>1||$("view").value==="dot"&&ids.length){ $("hits").hidden=true; drawDot(ids); return; }
+    if(ids.length===1&&/^LOC\d+$/i.test(q)){ $("hits").hidden=true; drawGene(ids[0]); return; }
     const words=q.toLowerCase().split(/\s+/).filter(Boolean); const out=[];
     for(const g in GENES){ const d=(GENES[g][4]||"").toLowerCase(); if(words.every(w=>d.includes(w))) out.push(g); if(out.length>400) break; }
     out.sort((x,y)=>GENES[y][3]-GENES[x][3]);   // most widely detected first
     const h=$("hits"); h.hidden=false;
     if(!out.length){ h.innerHTML=`<li class="cap">No gene description contains “${q}”.</li>`; return; }
     h.innerHTML=out.slice(0,60).map(g=>{ const a=GENES[g]; return `<li><a href="#" data-g="${g}">${g}</a><span class="d">${a[4]||""}</span><small>${a[0]<0?a[1]+" nuclei":a[3]+" %"}</small></li>`; }).join("")+(out.length>60?`<li class="cap">${out.length} matches; showing the 60 most widely detected. Add a word to narrow.</li>`:"");
-    h.querySelectorAll("a[data-g]").forEach(a=>a.addEventListener("click",e=>{ e.preventDefault(); $("q").value=a.dataset.g; drawGene(a.dataset.g); }));
+    h.querySelectorAll("a[data-g]").forEach(a=>a.addEventListener("click",e=>{ e.preventDefault(); $("q").value=a.dataset.g; h.hidden=true; search(a.dataset.g); }));
   }
   $("f").addEventListener("submit",e=>{ e.preventDefault(); search($("q").value); });
-  document.querySelectorAll("a[data-g]").forEach(a=>a.addEventListener("click",e=>{ e.preventDefault(); $("q").value=a.dataset.g; $("hits").hidden=true; drawGene(a.dataset.g); }));
+  document.querySelectorAll("a[data-g]").forEach(a=>a.addEventListener("click",e=>{ e.preventDefault(); $("q").value=a.dataset.g; $("hits").hidden=true; search(a.dataset.g); }));
+  $("view").addEventListener("change",()=>search($("q").value));
   document.querySelectorAll("a[data-k]").forEach(a=>a.addEventListener("click",e=>{ e.preventDefault(); $("q").value=a.dataset.k; search(a.dataset.k); }));
   const h=(location.hash||"").slice(1);
   const start=/^LOC\d+$/.test(h)&&GENES[h]?h:"LOC127343516";

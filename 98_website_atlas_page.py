@@ -5,7 +5,8 @@ Writes results/browser/website_root_atlas/:
   index.html                 the page (schematic + cell-state UMAP + gene box -> feature plot drawn in the browser)
   schematic.svg              cell-by-cell root schematic (figures/Root_schematic_Lp.svg)
   data/umap.png              2 x N RGB PNG: row 0 = x, row 1 = y as (R = high byte, G = low byte) of 0..65535-scaled UMAP, 20,000-nucleus subsample
-  data/labels.png            1 x N grey PNG: cell-state index into data/meta.json["states"]
+  data/labels.png            1 x N grey PNG: cell-state index
+  data/libs.png              1 x N grey PNG: library index into meta.json['libs'] (genotype, N level) into data/meta.json["states"]
   data/meta.json             states (name, colour, n nuclei), counts
   data/genes.json            gene index: id -> [chunk, row, max, pct nuclei, description, role]
   data/chunk_<k>.png         32 x N grey PNG: genes x nuclei, uint8 (log1p CP10k scaled to the gene's 99th percentile), fetched on demand
@@ -23,7 +24,7 @@ N_SUB, CHUNK, SEED = 20000, 128, 0
 MIN_NUCLEI = 10            # genes detected in fewer nuclei are listed in the index but have no expression chunk
 rng = np.random.default_rng(SEED)
 
-obs = S.load_obs(["label_from_audit"]); U = S.load_umap()
+obs = S.load_obs(["label_from_audit", "sample"]); U = S.load_umap()
 grp = S.merge_other(obs["group"].astype(str).values)
 states = [g for g in S.GROUP_ORDER_ANATOMICAL]
 idx = np.sort(rng.choice(len(obs), N_SUB, replace=False))
@@ -37,6 +38,8 @@ um[0, :, 0], um[0, :, 1] = Uq[:, 0] >> 8, Uq[:, 0] & 255
 um[1, :, 0], um[1, :, 1] = Uq[:, 1] >> 8, Uq[:, 1] & 255
 Image.fromarray(um, "RGB").save(f"{OUT}/data/umap.png", optimize=True)
 Image.fromarray(lab[None, :], "L").save(f"{OUT}/data/labels.png", optimize=True)
+samp = obs["sample"].astype(str).values[idx]
+Image.fromarray(np.array([S.SAMPLE_ORDER.index(x) for x in samp], dtype=np.uint8)[None, :], "L").save(f"{OUT}/data/libs.png", optimize=True)
 
 # ---- gene set
 ann = S.gene_annot()
@@ -81,7 +84,9 @@ for k in range(0, len(glist), CHUNK):
 
 counts = pd.Series(grp).value_counts()
 meta = dict(n=N_SUB, n_total=int(len(obs)), umap_range=[lo.tolist(), hi.tolist()], chunk=CHUNK, n_genes=len(glist), n_rare=len(rare),
-            states=[dict(name=s, label=S.GROUP_LEGEND[s], color=S.GROUP_COLORS[s], n=int(counts.get(s, 0))) for s in states])
+            states=[dict(name=s, label=S.GROUP_LEGEND[s], color=S.GROUP_COLORS[s], n=int(counts.get(s, 0))) for s in states],
+            libs=[dict(id=l, geno=S.GENOTYPE_NAMES[l.split("_")[1]], trt=S.TREATMENT_NAMES[l.split("_")[2]]) for l in S.SAMPLE_ORDER],
+            geno_colors={S.GENOTYPE_NAMES[k]: v for k, v in S.GENOTYPE_COLORS.items()})
 json.dump(meta, open(f"{OUT}/data/meta.json", "w"), separators=(",", ":"))
 # gene index: id -> [chunk, row, max, pct, description, role]; rare genes -> [-1, nnz, 0, 0, description, ""]
 for g in rare: meta_genes[g] = [-1, int(nnz_by_gene[g]), 0, 0, str(ann.desc.get(g, ""))[:90], ""]
