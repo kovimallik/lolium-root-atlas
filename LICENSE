@@ -1,2 +1,18 @@
-Creative Commons Attribution 4.0 International (CC BY 4.0) for the page, schematic and display data.
+Perennial ryegrass root atlas — web viewer, schematic and display data
+Copyright (c) 2026 Mallikarjuna Rao Kovi, Sustainable Plant Group, Norwegian University of Life Sciences (NMBU)
+
+This work is licensed under the Creative Commons Attribution 4.0 International License (CC BY 4.0):
 https://creativecommons.org/licenses/by/4.0/
+
+You may share and adapt the page, the schematic and the display data for any purpose, including commercially,
+provided that you give appropriate credit. For this work, appropriate credit means citing the article that
+describes the atlas in any publication, presentation, website or software that uses it or data derived from it:
+
+    Kovi, M. R. et al. A constitutively active cortical nitrate-uptake cell state underlies nitrogen-use
+    efficiency in perennial ryegrass. bioRxiv (2026). [DOI to be added at posting]
+
+and, where the page itself is embedded or reproduced, linking to https://sustainplantgroup.com.
+Until the article is posted, the data and page are unpublished: please contact the author before reuse.
+
+The underlying single-nucleus data set (raw reads, count matrices, full atlas object) is released separately
+under its own accession and licence, as stated in the article's Data availability section.

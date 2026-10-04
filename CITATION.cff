@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this atlas viewer or its data, please cite the article below."
+title: "Perennial ryegrass root atlas — web viewer"
+authors:
+  - family-names: Kovi
+    given-names: Mallikarjuna Rao
+    affiliation: "Sustainable Plant Group, Norwegian University of Life Sciences (NMBU)"
+    email: mallikarjuna.rao.kovi@nmbu.no
+license: CC-BY-4.0
+url: "https://sustainplantgroup.com"
+repository-code: "https://github.com/kovimallik/lolium-root-atlas"
+preferred-citation:
+  type: article
+  title: "A constitutively active cortical nitrate-uptake cell state underlies nitrogen-use efficiency in perennial ryegrass"
+  authors:
+    - family-names: Kovi
+      given-names: Mallikarjuna Rao
+  journal: bioRxiv
+  year: 2026
+  doi: "10.1101/TO-BE-ADDED"

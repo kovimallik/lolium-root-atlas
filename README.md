@@ -7,6 +7,12 @@ Single-nucleus RNA-seq atlas of the *Lolium perenne* root (76,684 nuclei, 15 cel
 - `data/` — 20,000-nucleus display subsample: `umap.png`, `labels.png`, `meta.json`, `genes.json` (gene index), `chunk_<k>.png` (128 genes × 20,000 nuclei, 8-bit, log1p CP10k scaled to each gene's 99th percentile)
 - `98_website_atlas_page.py` — builder, run on the processed atlas (code and data: see the paper's Data availability)
 
-Citation: Kovi et al., bioRxiv 2026, *A constitutively active cortical nitrate-uptake cell state underlies nitrogen-use efficiency in perennial ryegrass*.
+## Licence and citation
+
+CC BY 4.0 (see `LICENSE`). Any use of the viewer, the schematic or the display data must cite the article:
+
+> Kovi, M. R. *et al.* A constitutively active cortical nitrate-uptake cell state underlies nitrogen-use efficiency in perennial ryegrass. *bioRxiv* (2026). DOI to be added.
+
+A machine-readable citation is in `CITATION.cff` (GitHub shows a "Cite this repository" button from it). Until the article is posted, the repository is private and the data are unpublished.
 
 Sustainable Plant Group, NMBU — https://sustainplantgroup.com
