@@ -223,7 +223,7 @@ footer{margin-top:36px;border-top:1px solid var(--line);padding-top:10px;font-si
       meta.states.forEach((s,k)=>{ const pct=cnt[k]?det[k]/cnt[k]:0, rad=2+9*Math.sqrt(pct); c.beginPath(); c.arc(left+k*cell+cell/2,y,rad,0,2*Math.PI); c.fillStyle=col(mean[k]/mx*255); c.fill(); c.strokeStyle="#8884"; c.stroke(); }); });
     [0.1,0.5,1].forEach((p,i)=>{ c.beginPath(); c.arc(left+K*cell-60+i*26,14,2+9*Math.sqrt(p),0,2*Math.PI); c.fillStyle="#999"; c.fill(); c.fillStyle=fg; c.font="10px IBM Plex Sans, sans-serif"; c.textAlign="center"; c.fillText(Math.round(p*100)+"%",left+K*cell-60+i*26,36); });
     c.textAlign="left"; c.fillStyle=fg; c.fillText("dot size: % nuclei detected; colour: mean expression scaled per gene",left-150,52);
-    $("gname").textContent=rows.map(r=>r[0]).join(", "); $("gdesc").textContent=rows.map(r=>GENES[r[0]][4]).join(" · "); $("gpct").textContent="—"; $("bars").innerHTML=""; $("vmax").textContent="row max";
+    $("gname").textContent=rows.map(r=>r[0]).join(", "); $("gdesc").textContent=rows.map(r=>GENES[r[0]][4]).join(" · "); $("gpct").textContent="-"; $("bars").innerHTML=""; $("vmax").textContent="row max";
     $("plotnote").textContent=rows.length<genes.length?`${genes.length-rows.length} gene(s) skipped (unknown or too rarely detected).`:"";
   }
   drawStates();
