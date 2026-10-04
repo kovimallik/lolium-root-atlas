@@ -40,6 +40,15 @@ input[type=text]:focus-visible,select:focus-visible{outline:2px solid var(--acce
 select{font:inherit;padding:8px 8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
 button{font:inherit;font-weight:600;padding:8px 16px;border-radius:4px;border:1px solid var(--accent-ink);background:var(--accent);color:#1E2A22;cursor:pointer}
 button:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+button.small{font-size:12px;padding:4px 10px;background:var(--bg);color:var(--fg);border-color:var(--line);font-weight:500}
+textarea{font:inherit;font-family:var(--mono);font-size:13px;width:100%;min-height:90px;padding:8px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg)}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
+.tbl th,.tbl td{text-align:left;padding:4px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+.tbl th{color:var(--muted);font-weight:500;letter-spacing:0.03em;text-transform:uppercase;font-size:11px}
+.tbl td.num{text-align:right;font-variant-numeric:tabular-nums}
+.tbl .gene{font-size:12.5px}
+.tbl td.d{max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tblwrap{overflow-x:auto}
 .hint{font-size:13px;color:var(--muted);margin:8px 0 0}
 .hint code,.gene{font-family:var(--mono)}
 .result{margin-top:16px;display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:16px;align-items:start}
@@ -107,10 +116,21 @@ footer{margin-top:36px;border-top:1px solid var(--line);padding-top:10px;font-si
           <div id="gdesc"></div>
           <dl><dt>Nuclei expressing</dt><dd id="gpct"></dd><dt>Listed as</dt><dd id="grole"></dd></dl>
           <div class="bars" id="bars"></div>
+          <p class="hint" style="margin-top:8px"><button type="button" id="copytab" class="small">Copy per-state table</button> <span id="copied"></span></p>
           <p class="hint" style="margin-top:8px">Bars: mean expression per cell state, scaled to the highest state. Colour scale: log1p counts per 10,000, capped at the 99th percentile of expressing nuclei.</p>
         </div>
       </div>
       <p class="msg" id="msg" hidden></p>
+    </div>
+
+    <div class="tool" id="list" style="margin-top:22px">
+      <h2>Your gene list</h2>
+      <p class="hint" style="margin:0 0 8px">Paste gene IDs (one per line, or separated by commas or spaces; up to 200). For each gene you get the cell state it marks, how specific it is, the share of nuclei expressing it and the Barhoney/Fagerlin ratio in that state. Typical use: a list of GWAS or QTL candidates, to see which are root-expressed and where.</p>
+      <textarea id="glist" placeholder="LOC127343516
+LOC127319930
+LOC127335392" aria-label="Gene list"></textarea>
+      <p style="margin:8px 0 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center"><button type="button" id="runlist">Annotate list</button> <button type="button" id="copylist" class="small" hidden>Copy table</button> <span class="hint" id="listnote" style="margin:0"></span></p>
+      <div class="tblwrap"><table class="tbl" id="ltab" hidden></table></div>
     </div>
 
     <section class="text" id="about">
@@ -172,6 +192,7 @@ footer{margin-top:36px;border-top:1px solid var(--line);padding-top:10px;font-si
     $("msg").hidden=true;
     if(!chunks[m.c]){ const d=await px8(`data/chunk_${m.c}.png`); const b=new Uint8Array(d.length/4); for(let i=0;i<b.length;i++) b[i]=d[4*i]; chunks[m.c]=b; }
     const v=chunks[m.c].subarray(m.i*N,(m.i+1)*N);
+    CUR={g,v,d:m.d};
     const view=$("view").value, cv=$("umapGene"), c=cv.getContext("2d");
     $("result").hidden=false; $("gname").textContent=g; $("gdesc").textContent=m.d; $("gpct").textContent=m.pct+" %"; $("vmax").textContent="≥ "+m.max.toFixed(2);
     $("grole").textContent=m.r||"detected gene"; $("grole").parentElement.querySelectorAll("dt")[1].hidden=!m.r; $("grole").hidden=!m.r;
@@ -226,6 +247,45 @@ footer{margin-top:36px;border-top:1px solid var(--line);padding-top:10px;font-si
     $("gname").textContent=rows.map(r=>r[0]).join(", "); $("gdesc").textContent=rows.map(r=>GENES[r[0]][4]).join(" · "); $("gpct").textContent="-"; $("bars").innerHTML=""; $("vmax").textContent="row max";
     $("plotnote").textContent=rows.length<genes.length?`${genes.length-rows.length} gene(s) skipped (unknown or too rarely detected).`:"";
   }
+  // per-state summary of one expression vector: mean, % detected, by genotype
+  function stateTable(v){
+    const K=meta.states.length, S4=k=>new Float64Array(k);
+    const sum=[S4(K),S4(K)], cnt=[S4(K),S4(K)], det=[S4(K),S4(K)];
+    for(let i=0;i<N;i++){ const g=GENO[i], k=L[i]; sum[g][k]+=v[i]; cnt[g][k]++; if(v[i]>0) det[g][k]++; }
+    return meta.states.map((s,k)=>{ const n=cnt[0][k]+cnt[1][k]; const mean=n?(sum[0][k]+sum[1][k])/n:0;
+      const mB=cnt[0][k]?sum[0][k]/cnt[0][k]:0, mF=cnt[1][k]?sum[1][k]/cnt[1][k]:0;
+      return {state:s.label.replace(/ \(.*\)/,""), n, mean, pct:n?(det[0][k]+det[1][k])/n*100:0, meanB:mB, meanF:mF, nB:cnt[0][k], nF:cnt[1][k]}; });
+  }
+  function copyText(txt,el){ const done=()=>{ el.textContent="copied"; setTimeout(()=>el.textContent="",1500); };
+    (navigator.clipboard&&navigator.clipboard.writeText?navigator.clipboard.writeText(txt).then(done):Promise.reject()).catch(()=>{ const ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta); ta.select(); try{document.execCommand("copy");done();}catch(e){ el.textContent="select and copy manually"; } document.body.removeChild(ta); }); }
+  let CUR=null;
+  $("copytab").addEventListener("click",()=>{ if(!CUR) return; const rows=stateTable(CUR.v);
+    const txt=["gene\tdescription\tcell_state\tn_nuclei\tpct_detected\tmean_scaled\tmean_Barhoney\tmean_Fagerlin\tn_Barhoney\tn_Fagerlin",
+      ...rows.map(r=>[CUR.g,CUR.d,r.state,r.n,r.pct.toFixed(1),(r.mean/255).toFixed(3),(r.meanB/255).toFixed(3),(r.meanF/255).toFixed(3),r.nB,r.nF].join("\t"))].join("\n");
+    copyText(txt,$("copied")); });
+  async function annotateList(){
+    const ids=[...new Set($("glist").value.toUpperCase().split(/[\s,;]+/).filter(x=>/^LOC\d+$/.test(x)))].slice(0,200);
+    if(!ids.length){ $("listnote").textContent="No LOC IDs found in the box."; return; }
+    const tab=$("ltab"); tab.hidden=false; $("copylist").hidden=true;
+    tab.innerHTML=`<thead><tr><th>Gene</th><th>Description</th><th>Detected in</th><th>Top state</th><th>Specificity</th><th>Bar/Fag in top state</th></tr></thead><tbody></tbody>`;
+    const tb=tab.querySelector("tbody"); const out=[];
+    for(let j=0;j<ids.length;j++){ const g=ids[j], a=GENES[g]; $("listnote").textContent=`${j+1} / ${ids.length}`;
+      let row;
+      if(!a) row={g,d:"not in the Kyuss_2.0 annotation",pct:"",top:"",spec:"",ratio:""};
+      else if(a[0]<0) row={g,d:a[4],pct:a[1]+" nuclei of "+meta.n_total.toLocaleString(),top:"too rare",spec:"",ratio:""};
+      else { const v=await loadVec(g); const rows=stateTable(v).filter(r=>r.state!=="Other"); rows.sort((x,y)=>y.mean-x.mean);
+        const t0=rows[0], tot=rows.reduce((s,r)=>s+r.mean,0), spec=tot?t0.mean/tot:0;
+        const ratio=t0.meanF>0?(t0.meanB/t0.meanF):(t0.meanB>0?Infinity:1);
+        row={g,d:a[4],pct:a[3]+" %",top:t0.state,spec:spec>=0.5?"specific ("+(spec*100).toFixed(0)+" %)":(spec*100).toFixed(0)+" % of signal",ratio:isFinite(ratio)?ratio.toFixed(2):"Bar only"}; }
+      out.push(row);
+      tb.insertAdjacentHTML("beforeend",`<tr><td class="gene"><a href="#${row.g}" data-g="${row.g}">${row.g}</a></td><td class="d" title="${row.d}">${row.d}</td><td class="num">${row.pct}</td><td>${row.top}</td><td>${row.spec}</td><td class="num">${row.ratio}</td></tr>`);
+    }
+    $("listnote").textContent=`${out.length} genes. Specificity = share of the summed per-state mean held by the top state (≥ 50 % called specific); ratio = mean in Barhoney / mean in Fagerlin within the top state, both N levels pooled.`;
+    $("copylist").hidden=false;
+    $("copylist").onclick=()=>copyText(["gene\tdescription\tpct_detected\ttop_state\tspecificity\tBar_over_Fag_top_state",...out.map(r=>[r.g,r.d,r.pct,r.top,r.spec,r.ratio].join("\t"))].join("\n"),$("listnote"));
+    tb.querySelectorAll("a[data-g]").forEach(x=>x.addEventListener("click",e=>{ e.preventDefault(); $("q").value=x.dataset.g; $("view").value="umap"; search(x.dataset.g); location.hash="gene"; }));
+  }
+  $("runlist").addEventListener("click",annotateList);
   drawStates();
   function search(q){
     q=q.trim(); if(!q) return;
