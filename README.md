@@ -13,6 +13,6 @@ CC BY 4.0 (see `LICENSE`). Any use of the viewer, the schematic or the display d
 
 > Kovi, M. R. *et al.* A constitutively active cortical nitrate-uptake cell state underlies nitrogen-use efficiency in perennial ryegrass. *bioRxiv* (2026). DOI to be added.
 
-A machine-readable citation is in `CITATION.cff` (GitHub shows a "Cite this repository" button from it). Until the article is posted, the repository is private and the data are unpublished.
+A machine-readable citation is in `CITATION.cff` (GitHub shows a "Cite this repository" button from it). Until the article is posted, the data are unpublished: please contact the author before reuse.
 
 Sustainable Plant Group, NMBU - https://sustainplantgroup.com
