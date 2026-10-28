@@ -11,8 +11,10 @@ Single-nucleus RNA-seq atlas of the *Lolium perenne* root (76,684 nuclei, 15 cel
 
 CC BY 4.0 (see `LICENSE`). Any use of the viewer, the schematic or the display data must cite the article:
 
-> Kovi, M. R. *et al.* A constitutively active cortical nitrate-uptake cell state underlies nitrogen-use efficiency in perennial ryegrass. *bioRxiv* (2026). DOI to be added.
+> Kovi, M. R. *et al.* A constitutively active cortical nitrate-uptake cell state underlies nitrogen-use efficiency in perennial ryegrass. *bioRxiv* 2026.10.12.758384 (2026). https://doi.org/10.64898/2026.10.12.758384
 
-A machine-readable citation is in `CITATION.cff` (GitHub shows a "Cite this repository" button from it). Until the article is posted, the data are unpublished: please contact the author before reuse.
+and link to the atlas: https://kovimallik.github.io/lolium-root-atlas/#LOC127343516
+
+A machine-readable citation is in `CITATION.cff` (GitHub shows a "Cite this repository" button from it). Processed data (h5ad, metadata, cell-state markers) and analysis code will be linked from the paper's Data availability section.
 
 Sustainable Plant Group, NMBU - https://sustainplantgroup.com

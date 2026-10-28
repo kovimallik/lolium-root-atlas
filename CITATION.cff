@@ -1,13 +1,14 @@
 cff-version: 1.2.0
-message: "If you use this atlas viewer or its data, please cite the article below."
+message: "If you use this atlas viewer or its data, please cite the article below and link to the atlas."
 title: "Perennial ryegrass root atlas - web viewer"
 authors:
   - family-names: Kovi
     given-names: Mallikarjuna Rao
     affiliation: "Sustainable Plant Group, Norwegian University of Life Sciences (NMBU)"
     email: mallikarjuna.rao.kovi@nmbu.no
+    orcid: "https://orcid.org/0000-0002-6088-7630"
 license: CC-BY-4.0
-url: "https://sustainplantgroup.com"
+url: "https://kovimallik.github.io/lolium-root-atlas/#LOC127343516"
 repository-code: "https://github.com/kovimallik/lolium-root-atlas"
 preferred-citation:
   type: article
@@ -15,6 +16,42 @@ preferred-citation:
   authors:
     - family-names: Kovi
       given-names: Mallikarjuna Rao
+    - family-names: Guevarra
+      given-names: Precious
+    - family-names: Thu
+      given-names: Sara
+    - family-names: Kragholm
+      given-names: Emma Tomine Morvik
+    - family-names: Pashapu
+      given-names: Akhil Reddy
+    - family-names: Nohr
+      given-names: Felix Hernandez
+    - family-names: da Costa
+      given-names: Igor Ferreira
+    - family-names: Steinkopf
+      given-names: Martin
+    - family-names: Gylstrøm
+      given-names: Kristin Håland
+    - family-names: Amdahl
+      given-names: Helga
+    - family-names: Manishankar
+      given-names: Prabha
+    - family-names: Alcantara
+      given-names: John Michael
+    - family-names: Windju
+      given-names: Susanne
+    - family-names: Veerabagu
+      given-names: Manikandan
+    - family-names: Alsheikh
+      given-names: Muath
+    - family-names: Fjellheim
+      given-names: Siri
+    - family-names: Sobral
+      given-names: Romulo Sacramento
+    - family-names: Rognli
+      given-names: Odd Arne
   journal: bioRxiv
   year: 2026
-  doi: "10.1101/TO-BE-ADDED"
+  doi: "10.64898/2026.10.12.758384"
+  url: "https://doi.org/10.64898/2026.10.12.758384"
+  notes: "Preprint 2026.10.12.758384. Interactive atlas: https://kovimallik.github.io/lolium-root-atlas/#LOC127343516"
